@@ -4,16 +4,15 @@
 
     This module handles HTTP requests via aiohttp/asyncio.
 
-    :copyright: (c) 2016-2017 by buckket.
+    :copyright: (c) 2016-2022 by buckket.
     :license: MIT, see LICENSE for more details.
 """
 
 import asyncio
 import logging
-import nest_asyncio
 from datetime import datetime, timezone
-from itertools import chain
 from email.utils import parsedate_to_datetime
+from itertools import chain
 from ssl import CertificateError
 
 import aiohttp
@@ -24,7 +23,7 @@ from twtxt.helper import generate_user_agent
 from twtxt.parser import parse_tweets
 
 logger = logging.getLogger(__name__)
-nest_asyncio.apply()
+
 
 class SourceResponse:
     """A :class:`SourceResponse` contains information about a :class:`Source`’s HTTP request.
@@ -45,10 +44,13 @@ class SourceResponse:
 
     @property
     def natural_last_modified(self):
-        last_modified = parsedate_to_datetime(self.last_modified)
-        now = datetime.now(timezone.utc)
-        tense = "from now" if last_modified > now else "ago"
-        return "{0} {1}".format(humanize.naturaldelta(now - last_modified), tense)
+        if self.last_modified is None:
+            return "?"
+        else:
+            last_modified = parsedate_to_datetime(self.last_modified)
+            now = datetime.now(timezone.utc)
+            tense = "from now" if last_modified > now else "ago"
+            return "{0} {1}".format(humanize.naturaldelta(now - last_modified), tense)
 
 
 async def retrieve_status(client, source):
@@ -136,23 +138,23 @@ async def process_sources_for_file(client, sources, limit, cache=None):
     return sorted(all_tweets, reverse=True)[:limit]
 
 
-async def get_remote_tweets(sources, limit=None, timeout=5.0, cache=None):
-    conn = aiohttp.TCPConnector(use_dns_cache=True)
-    headers = generate_user_agent()
+def get_remote_tweets(sources, limit=None, timeout=5.0, cache=None):
+    async def start_loop():
+        conn = aiohttp.TCPConnector(use_dns_cache=True)
+        headers = generate_user_agent()
 
-    async with aiohttp.ClientSession(connector=conn, headers=headers, conn_timeout=timeout) as client:
-        loop = asyncio.get_event_loop()
-        tweets = loop.run_until_complete(process_sources_for_file(client, sources, limit, cache))
+        async with aiohttp.ClientSession(connector=conn, headers=headers, conn_timeout=timeout) as client:
+            return await process_sources_for_file(client, sources, limit, cache)
 
-    return tweets
+    return asyncio.run(start_loop())
 
 
-async def get_remote_status(sources, timeout=5.0):
-    conn = aiohttp.TCPConnector(use_dns_cache=True)
-    headers = generate_user_agent()
+def get_remote_status(sources, timeout=5.0):
+    async def start_loop():
+        conn = aiohttp.TCPConnector(use_dns_cache=True)
+        headers = generate_user_agent()
 
-    async with aiohttp.ClientSession(connector=conn, headers=headers, conn_timeout=timeout) as client:
-        loop = asyncio.get_event_loop()
-        result = loop.run_until_complete(process_sources_for_status(client, sources))
+        async with aiohttp.ClientSession(connector=conn, headers=headers, conn_timeout=timeout) as client:
+            return await process_sources_for_status(client, sources)
 
-    return result
+    return asyncio.run(start_loop())

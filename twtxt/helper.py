@@ -4,7 +4,7 @@
 
     This module implements various helper for use in twtxt.
 
-    :copyright: (c) 2016-2017 by buckket.
+    :copyright: (c) 2016-2022 by buckket.
     :license: MIT, see LICENSE for more details.
 """
 
@@ -12,9 +12,7 @@ import shlex
 import subprocess
 import sys
 import textwrap
-from functools import wraps
 
-import asyncio
 import click
 import pkg_resources
 
@@ -179,10 +177,3 @@ def generate_user_agent():
         user_agent = "twtxt/{version}".format(version=version)
 
     return {"User-Agent": user_agent}
-
-def coro(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        return asyncio.run(f(*args, **kwargs))
-
-    return wrapper
